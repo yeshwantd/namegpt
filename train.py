@@ -73,8 +73,9 @@ class Block(nn.Module):
 
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self, vocab_size, block_size, head_size, num_heads, num_layers, embedding_dim, dropout_rate):
+    def __init__(self, vocab_size, block_size, head_size, num_heads, num_layers, embedding_dim, dropout_rate, device):
         super().__init__()
+        self.device = device
         self.block_size = block_size
         self.token_embedding_table = nn.Embedding(vocab_size, embedding_dim)
         self.position_embedding_table = nn.Embedding(block_size, embedding_dim)
@@ -99,7 +100,7 @@ class BigramLanguageModel(nn.Module):
         # batch_size, block_size, vocab_size = B (batch), T (time), C (channel)
         B, T = idx.shape # batch_size, block_size
         tok_emb = self.token_embedding_table(idx) # (batch_size, block_size, num_embeddings)
-        pos_emb = self.position_embedding_table(torch.arange(T)) # (block_size, num_embeddings)
+        pos_emb = self.position_embedding_table(torch.arange(T).to(self.device)) # (block_size, num_embeddings)
         x = tok_emb + pos_emb # (batch_size, block_size, num_embeddings)
         # x = self.sa_heads(x) # (batch_size, block_size, head_size)
         # x = self.ffwd(x) # (batch_size, block_size, C)
@@ -169,13 +170,17 @@ def train():
 
     max_iters = 5000
     eval_iters = 1000
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     m = BigramLanguageModel(vocab_size, block_size, head_size, num_heads, num_layers, n_embeddings, dropout_rate)
+    m.to('device')
     optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate)
 
     for iter in range(max_iters):
         # sample a batch of data
         xb, yb = get_batch(train_data, block_size, batch_size)
+        xb = xb.to(device)
+        yb = yb.to(device)
         # evaluate the loss
         logits, loss = m(xb, yb)
         optimizer.zero_grad()
