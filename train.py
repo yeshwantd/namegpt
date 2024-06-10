@@ -172,7 +172,7 @@ def train():
     eval_iters = 1000
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    m = BigramLanguageModel(vocab_size, block_size, head_size, num_heads, num_layers, n_embeddings, dropout_rate)
+    m = BigramLanguageModel(vocab_size, block_size, head_size, num_heads, num_layers, n_embeddings, dropout_rate, device)
     m.to('device')
     optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate)
 
