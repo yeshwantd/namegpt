@@ -99,8 +99,12 @@ class BigramLanguageModel(nn.Module):
         # targets is (batch_size, block_size) tensor of integers
         # batch_size, block_size, vocab_size = B (batch), T (time), C (channel)
         B, T = idx.shape # batch_size, block_size
+        # print(f"idx device: {idx.device}")
         tok_emb = self.token_embedding_table(idx) # (batch_size, block_size, num_embeddings)
-        pos_emb = self.position_embedding_table(torch.arange(T).to(self.device)) # (block_size, num_embeddings)
+        # print(f"tok_emb device: {tok_emb.device}")
+        pos_emb = self.position_embedding_table(torch.arange(T, device=self.device)) # (block_size, num_embeddings)
+        # print(f"pos emb device: {pos_emb.device}")
+        
         x = tok_emb + pos_emb # (batch_size, block_size, num_embeddings)
         # x = self.sa_heads(x) # (batch_size, block_size, head_size)
         # x = self.ffwd(x) # (batch_size, block_size, C)
@@ -156,7 +160,7 @@ def get_batch(data, block_size, batch_size):
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     return x, y
 
-def train():
+def train(device):
     train_data, val_data, vocab_size, encode, decode = get_data()
     
     block_size = 256
@@ -170,10 +174,11 @@ def train():
 
     max_iters = 5000
     eval_iters = 1000
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    print(f"Device: {device}")
     
     m = BigramLanguageModel(vocab_size, block_size, head_size, num_heads, num_layers, n_embeddings, dropout_rate, device)
-    m.to('device')
+    m.to(device)
     optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate)
 
     for iter in range(max_iters):
@@ -194,6 +199,8 @@ def train():
             with torch.no_grad():
                 for _ in range(eval_iters):
                     xb, yb = get_batch(val_data, block_size, batch_size)
+                    xb = xb.to(device)
+                    yb = yb.to(device)
                     logits, loss = m(xb, yb)
                     val_loss += loss.item()
             m.train()
@@ -203,9 +210,9 @@ def train():
     return m, decode
 
 if __name__ == '__main__':
-
-    m, decode = train()
-    print(decode(m.generate(idx=torch.zeros((1, 1), dtype=torch.long), max_new_tokens=500)[0].tolist()))
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    m, decode = train(device)
+    print(decode(m.generate(idx=torch.zeros((1, 1), dtype=torch.long).to(device), max_new_tokens=500)[0].tolist()))
         
         
         
